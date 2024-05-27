@@ -1,0 +1,475 @@
+from pgmpy.models import BayesianNetwork
+from pgmpy.estimators import MaximumLikelihoodEstimator
+from pgmpy.inference import VariableElimination
+import pandas as pd
+
+# Sample data
+data = pd.DataFrame(data={'Rain': ['No', 'No', 'Yes', 'Yes', 'No', 'Yes', 'Yes', 'No'],
+                          'TrafficJam': ['Yes', 'yes', 'Yes', 'No', 'Yes', 'Yes', 'No', 'No'],
+                          'ArriveLate': ['Yes', 'No', 'Yes', 'No', 'No', 'Yes', 'Yes', 'No']})
+
+# Define the Bayesian network structure
+model = BayesianNetwork([('Rain', 'TrafficJam'), ('TrafficJam', 'ArriveLate')])
+
+# Fit the model to the data using Maximum Likelihood Estimation
+model.fit(data)
+
+# Print conditional probability distributions
+print(model.get_cpds())
+
+# Perform inference
+inference = VariableElimination(model)
+query_result = inference.query(variables=['ArriveLate'], evidence={'Rain': 'Yes'})
+print(query_result)
+*/
+import heapq
+
+# Define the goal state
+goal_state = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 0]
+]
+
+# Calculate Manhattan distance
+def manhattan_distance(state):
+    distance = 0
+    for i in range(3):
+        for j in range(3):
+            if state[i][j] != 0:
+                goal_row, goal_col = divmod(state[i][j] - 1, 3)
+                distance += abs(i - goal_row) + abs(j - goal_col)
+    return distance
+
+# A* search function
+def a_star_search(initial_state):
+    visited = set()
+    heap = [(manhattan_distance(initial_state), initial_state, 0, "")]
+
+    while heap:
+        _, current_state, cost, path = heapq.heappop(heap)
+
+        if current_state == goal_state:
+            return path, cost
+
+        zero_row, zero_col = [(i, j) for i in range(3) for j in range(3) if current_state[i][j] == 0][0]
+
+        # Generate possible moves dynamically
+        possible_moves = [(zero_row - 1, zero_col),  # Up
+                          (zero_row + 1, zero_col),  # Down
+                          (zero_row, zero_col - 1),  # Left
+                          (zero_row, zero_col + 1)]  # Right
+
+        for move_row, move_col in possible_moves:
+            if 0 <= move_row < 3 and 0 <= move_col < 3:
+                new_state = [row[:] for row in current_state]
+                new_state[zero_row][zero_col], new_state[move_row][move_col] = new_state[move_row][move_col], new_state[zero_row][zero_col]
+
+                if tuple(map(tuple, new_state)) not in visited:
+                    visited.add(tuple(map(tuple, new_state)))
+                    new_cost = cost + 1
+                    new_path = path + str((move_row, move_col))
+                    heapq.heappush(heap, (new_cost + manhattan_distance(new_state), new_state, new_cost, new_path))
+
+    return "No solution", float('inf')
+
+# Test the solver
+initial_state = [
+    [1, 0, 3],
+    [4, 2, 5],
+    [7, 8, 6]
+]
+ 
+path, cost = a_star_search(initial_state)
+
+print("Initial State:")
+for row in initial_state:
+    print(row)
+
+print("\nGoal State:")
+for row in goal_state:
+    print(row)
+
+print(f"Number of moves: {cost}")
+print(f"Path: {path}")
+
+*/
+
+def water_jug_problem(capacities, target):
+    initial_state = (0, 0)
+    queue = [(0, initial_state, [])]  # (steps, state, path)
+    visited = set()
+
+    while queue:
+        steps, state, path = queue.pop(0)
+
+        if state in visited:
+            continue
+
+        visited.add(state)
+
+        if state == target:
+            return path  # Return the sequence of actions (path) to reach the target
+
+        for action in [('fill', 0), ('fill', 1), ('empty', 0), ('empty', 1), ('pour', 0, 1), ('pour', 1, 0)]:
+            new_state = apply_action(state, action, capacities)
+            if new_state not in visited:
+                new_path = path + [action]  # Append the current action to the path
+                queue.append((steps + 1, new_state, new_path))
+
+    return None  # If no solution found
+
+def apply_action(state, action, capacities):
+    a, b = state
+    ca, cb = capacities
+    if action[0] == 'fill':
+        if action[1] == 0:
+            return (ca, b)
+        elif action[1] == 1:
+            return (a, cb)
+    elif action[0] == 'empty':
+        if action[1] == 0:
+            return (0, b)
+        elif action[1] == 1:
+            return (a, 0)
+    elif action[0] == 'pour':
+        source, target = action[1:]
+        amount = min(state[source], capacities[target] - state[target])
+        new_state = list(state)
+        new_state[source] -= amount
+        new_state[target] += amount
+        return tuple(new_state)
+
+# Example usage:
+capacities = (7, 3)  # Jug A capacity = 4, Jug B capacity = 3
+target = (5, 0)      # Goal state: 2 units in Jug A, 0 units in Jug B
+path = water_jug_problem(capacities, target)
+
+if path:
+    print("Steps to reach the target state:")
+    for step, action in enumerate(path):
+        print(f"Step {step + 1}: {action}")
+else:
+    print("No solution found.")
+*/SUDOKU
+def is_valid(board, row, col, num):
+    # Check if placing 'num' at board[row][col] is valid
+    # Check the row
+    if num in board[row]:
+        return False
+
+    # Check the column
+    for r in range(9):
+        if board[r][col] == num:
+            return False
+
+    # Check the 3x3 subgrid
+    start_row, start_col = 3 * (row // 3), 3 * (col // 3)
+    for r in range(start_row, start_row + 3):
+        for c in range(start_col, start_col + 3):
+            if board[r][c] == num:
+                return False
+
+    return True
+
+def solve_sudoku(board):
+    def backtrack():
+        for row in range(9):
+            for col in range(9):
+                if board[row][col] == 0:  # Find empty cell
+                    for num in range(1, 10):
+                        if is_valid(board, row, col, num):
+                            board[row][col] = num  # Place the number
+                            if backtrack():  # Recursively solve
+                                return True
+                            board[row][col] = 0  # Backtrack
+                    return False
+        return True  # No empty cell found means solution is complete
+
+    backtrack()
+
+# Example usage:
+board = [
+    [5, 3, 0, 0, 7, 0, 0, 0, 0],
+    [6, 0, 0, 1, 9, 5, 0, 0, 0],
+    [0, 9, 8, 0, 0, 0, 0, 6, 0],
+    [8, 0, 0, 0, 6, 0, 0, 0, 3],
+    [4, 0, 0, 8, 0, 3, 0, 0, 1],
+    [7, 0, 0, 0, 2, 0, 0, 0, 6],
+    [0, 6, 0, 0, 0, 0, 2, 8, 0],
+    [0, 0, 0, 4, 1, 9, 0, 0, 5],
+    [0, 0, 0, 0, 8, 0, 0, 7, 9]
+]
+
+solve_sudoku(board)
+
+# Print the solved board
+for row in board:
+    print(row)
+*/GAME SEARCH
+
+import numpy as np
+# Function to check if the board is full
+def is_board_full(board):
+    return not any(' ' in row for row in board)
+# Function to check if a player has won
+def check_winner(board, player):
+    # Check rows
+    for row in board:
+        if all(cell == player for cell in row):
+            return True
+    # Check columns
+    for col in range(3):
+        if all(board[row][col] == player for row in range(3)):
+            return True
+    # Check diagonals
+    if all(board[i][i] == player for i in range(3)) or all(board[i][2-i] == player for i in range(3)):
+        return True
+    return False
+# Function to evaluate the current board state
+def evaluate_board(board):
+    if check_winner(board, 'X'):
+        return 1
+    elif check_winner(board, 'O'):
+        return -1
+    else:
+        return 0
+# Minimax function
+def minimax(board, depth, is_maximizing):
+    if check_winner(board, 'X'):
+        return 1
+    elif check_winner(board, 'O'):
+        return -1
+    elif is_board_full(board):
+        return 0
+    if is_maximizing:
+        max_eval = float('-inf')
+        for i in range(3):
+            for j in range(3):
+                if board[i][j] == ' ':
+                    board[i][j] = 'X'
+                    eval = minimax(board, depth + 1, False)
+                    board[i][j] = ' '
+                    max_eval = max(max_eval, eval)
+        return max_eval
+    else:
+        min_eval = float('inf')
+        for i in range(3):
+            for j in range(3):
+                if board[i][j] == ' ':
+                    board[i][j] = 'O'
+                    eval = minimax(board, depth + 1, True)
+                    board[i][j] = ' '
+                    min_eval = min(min_eval, eval)
+        return min_eval
+# Function to find the best move using the minimax algorithm
+def find_best_move(board):
+    best_eval = float('-inf')
+    best_move = None
+    for i in range(3):
+        for j in range(3):
+            if board[i][j] == ' ':
+                board[i][j] = 'X'
+                eval = minimax(board, 0, False)
+                board[i][j] = ' '
+                if eval > best_eval:
+                    best_eval = eval
+                    best_move = (i, j)
+    return best_move
+# Function to print the current board state
+def print_board(board):
+    for row in board:
+        print(' | '.join(row))
+        print('---------')
+# Function to play the Tic-Tac-Toe game
+def play_tic_tac_toe():
+    board = [[' ' for _ in range(3)] for _ in range(3)]
+    print("Welcome to Tic-Tac-Toe!")
+    print_board(board)
+    while not is_board_full(board) and not check_winner(board, 'X') and not check_winner(board, 'O'):
+        # Player's move
+        row, col = map(int, input("Enter your move (row and column separated by space): ").split())
+        if board[row][col] == ' ':
+            board[row][col] = 'O'
+            print_board(board)
+        else:
+            print("Invalid move! Try again.")
+            continue
+        if check_winner(board, 'O'):
+            print("Congratulations! You win!")
+            return
+        elif is_board_full(board):
+            print("It's a draw!")
+            return
+        # Computer's move
+        print("Computer's move:")
+        best_move = find_best_move(board)
+        board[best_move[0]][best_move[1]] = 'X'
+        print_board(board)
+        if check_winner(board, 'X'):
+            print("Computer wins!")
+            return
+        elif is_board_full(board):
+            print("It's a draw!")
+            return
+# Play the game
+play_tic_tac_toe()
+
+*/MDP
+class GraphColoringCSP:
+    def _init_(self, vertices, edges, colors):
+        self.vertices = vertices
+        self.edges = edges
+        self.colors = colors
+
+    def is_complete(self, assignment):
+        return set(assignment.keys()) == set(self.vertices)
+
+    def is_consistent(self, vertex, color, assignment):
+        return all(neighbor not in assignment or assignment[neighbor] != color for neighbor in self.edges[vertex])
+ 
+    def backtracking_search(self, assignment={}):
+        if self.is_complete(assignment):
+            return assignment
+
+        vertex = next(v for v in self.vertices if v not in assignment)
+        for color in self.colors:
+            if self.is_consistent(vertex, color, assignment):
+                result = self.backtracking_search({**assignment, vertex: color})
+                if result:
+                    return result
+        return None
+
+# Example usage:
+def main():
+    # Define the graph
+    vertices = ['A', 'B', 'C', 'D']
+    edges = {'A': ['B', 'C'], 'B': ['A', 'C', 'D'], 'C': ['A', 'B', 'D'], 'D': ['B', 'C']}
+    colors = [1,2,3]
+
+
+    # Solve graph coloring problem
+    solution = GraphColoringCSP(vertices, edges, colors).backtracking_search()
+
+    # Print solution
+    print("Solution found:" if solution else "No solution found.")
+    print(solution)
+
+if _name_ == "_main_":
+    main()
+*/
+import numpy as np
+
+class GridWorldMDP:
+    def _init_(self, size, goal, trap):
+        self.size = size
+        self.goal = goal
+        self.trap = trap
+        self.state_space = [(i, j) for i in range(size) for j in range(size)]
+        self.action_space = ['UP', 'DOWN', 'LEFT', 'RIGHT']
+        self.transitions = self.build_transitions()
+        self.rewards = self.build_rewards()
+
+    def build_transitions(self):
+        transitions = {}
+        for state in self.state_space:
+            transitions[state] = {}
+            for action in self.action_space:
+                transitions[state][action] = self.calculate_transitions(state, action)
+        return transitions
+
+    def calculate_transitions(self, state, action):
+        i, j = state
+        if action == 'UP':
+            return self.validate_state(i - 1, j)
+        elif action == 'DOWN':
+            return self.validate_state(i + 1, j)
+        elif action == 'LEFT':
+            return self.validate_state(i, j - 1)
+        elif action == 'RIGHT':
+            return self.validate_state(i, j + 1)
+
+    def validate_state(self, i, j):
+        i = max(0, min(i, self.size - 1))
+        j = max(0, min(j, self.size - 1))
+        if (i, j) == self.goal:
+            return [(1.0, self.goal)]
+        elif (i, j) == self.trap:
+            return [(1.0, self.trap)]
+        else:
+            return [(1.0, (i, j))]
+
+    def build_rewards(self):
+        rewards = {}
+        for state in self.state_space:
+            rewards[state] = -1.0
+        rewards[self.goal] = 0.0
+        rewards[self.trap] = -10.0
+        return rewards
+
+def value_iteration(mdp, gamma=0.9, epsilon=0.01):
+    state_values = {state: 0.0 for state in mdp.state_space}
+    while True:
+        delta = 0
+        for state in mdp.state_space:
+            if state == mdp.goal or state == mdp.trap:
+                continue
+            v = state_values[state]
+            state_values[state] = max([sum([p * (mdp.rewards[next_state] + gamma * state_values[next_state])
+                                            for p, next_state in mdp.transitions[state][action]])
+                                       for action in mdp.action_space])
+            delta = max(delta, abs(v - state_values[state]))
+        if delta < epsilon:
+            break
+    return state_values
+
+def policy_iteration(mdp, gamma=0.9):
+    policy = {state: np.random.choice(mdp.action_space) for state in mdp.state_space}
+    state_values = {state: 0.0 for state in mdp.state_space}
+    while True:
+        # Policy Evaluation
+        while True:
+            delta = 0
+            for state in mdp.state_space:
+                if state == mdp.goal or state == mdp.trap:
+                    continue
+                v = state_values[state]
+                action = policy[state]
+                state_values[state] = sum([p * (mdp.rewards[next_state] + gamma * state_values[next_state])
+                                           for p, next_state in mdp.transitions[state][action]])
+                delta = max(delta, abs(v - state_values[state]))
+            if delta < 0.01:
+                break
+        # Policy Improvement
+        policy_stable = True
+        for state in mdp.state_space:
+            if state == mdp.goal or state == mdp.trap:
+                continue
+            old_action = policy[state]
+            policy[state] = max(mdp.action_space, key=lambda a: sum([p *
+                                                                     (mdp.rewards[next_state] + gamma *
+                                                                      state_values[next_state])
+                                                                     for p, next_state in mdp.transitions[state][a]]))
+            if old_action != policy[state]:
+                policy_stable = False
+        if policy_stable:
+            break
+    return policy, state_values
+
+# Example Usage:
+size = 3
+goal = (2, 2)
+trap = (1, 1)
+mdp = GridWorldMDP(size, goal, trap)
+
+# Value Iteration
+value_iteration_result = value_iteration(mdp)
+print("Value Iteration Results:")
+for state, value in value_iteration_result.items():
+    print(f"State: {state}, Value: {value}")
+
+# Policy Iteration
+policy_iteration_result, policy_iteration_state_values = policy_iteration(mdp)
+print("\nPolicy Iteration Results:")
+for state, action in policy_iteration_result.items():
+    print(f"State: {state}, Action: {action}, Value: {policy_iteration_state_values[state]}")
